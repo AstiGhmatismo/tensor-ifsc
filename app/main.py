@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import logging
 from pathlib import Path
 from collections import Counter
 from typing import Any
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
 
 cfg = Settings()
 app = FastAPI(title="Tensor-IFSC API", version="0.2.1")
+logger = logging.getLogger(__name__)
 
 
 class Question(BaseModel):
@@ -122,7 +124,16 @@ async def chat(payload: Question) -> dict[str, Any]:
             answer = response.json()["choices"][0]["message"]["content"].strip()
             if not answer:
                 raise ValueError("Resposta vazia")
-    except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+    except httpx.HTTPStatusError as exc:
+        # Keep provider diagnostics in Render logs without exposing request headers or secrets.
+        logger.error(
+            "LLM provider returned HTTP %s: %s",
+            exc.response.status_code,
+            exc.response.text[:500],
+        )
+        raise HTTPException(status_code=503, detail="O serviço de IA está temporariamente indisponível. Tente novamente mais tarde.") from exc
+    except (httpx.RequestError, KeyError, IndexError, ValueError) as exc:
+        logger.exception("LLM request failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=503, detail="O serviço de IA está temporariamente indisponível. Tente novamente mais tarde.") from exc
 
     return {

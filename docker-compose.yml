@@ -1,0 +1,14 @@
+services:
+  tensor-ifsc:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/app/.chroma
+      - ./data/documents:/app/data/documents:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+volumes:
+  chroma_data:

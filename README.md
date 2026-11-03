@@ -4,7 +4,7 @@ Assistente acadêmico experimental para estudantes do IFSC Câmpus Garopaba. Int
 
 ## Modelo de linguagem
 
-O projeto utiliza **Gemini 2.5 Flash-Lite** pela API compatível com OpenAI do Google. O modelo foi escolhido por ser adequado a perguntas curtas e por oferecer faixa gratuita na API, sujeita a limites e disponibilidade do Google. É necessária uma chave criada no Google AI Studio; ela deve ser cadastrada como segredo `LLM_API_KEY` no Render e nunca no GitHub.
+O projeto utiliza **Gemini 3.5 Flash-Lite** pela API compatível com OpenAI do Google. O modelo foi escolhido por ser adequado a perguntas curtas e por oferecer faixa gratuita na API, sujeita a limites e disponibilidade do Google. É necessária uma chave criada no Google AI Studio; ela deve ser cadastrada como segredo `LLM_API_KEY` no Render e nunca no GitHub.
 
 ## Executar localmente
 
@@ -17,7 +17,7 @@ O projeto utiliza **Gemini 2.5 Flash-Lite** pela API compatível com OpenAI do G
 
 O serviço usa Docker e escuta a porta definida por `PORT`. Configure no Render:
 - `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`
-- `LLM_MODEL=gemini-2.5-flash-lite`
+- `LLM_MODEL=gemini-3.5-flash-lite`
 - `LLM_API_KEY` como segredo.
 
 O corpus fica versionado em `data/knowledge/`; não depende do filesystem efêmero nem de disco persistente. O plano gratuito pode suspender o serviço após inatividade e causar demora na primeira abertura.

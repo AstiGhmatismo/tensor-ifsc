@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 from collections import Counter
@@ -12,7 +11,6 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -22,12 +20,12 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = "gemini-2.5-flash-lite"
     llm_timeout_seconds: int = 45
-    knowledge_path: str = str(ROOT / "data" / "knowledge")
+    knowledge_path: str = str(ROOT)
     top_k: int = 4
 
 
 cfg = Settings()
-app = FastAPI(title="Tensor-IFSC API", version="0.2.0")
+app = FastAPI(title="Tensor-IFSC API", version="0.2.1")
 
 
 class Question(BaseModel):
@@ -43,13 +41,12 @@ def load_knowledge() -> list[dict[str, str]]:
     records: list[dict[str, str]] = []
     if not folder.exists():
         return records
-    for path in sorted(folder.glob("*.md")):
+    for path in sorted(folder.glob("knowledge_*.md")):
         content = path.read_text(encoding="utf-8")
-        title = path.stem.replace("-", " ").title()
-        source = ""
-        match = re.search(r"^source:\s*(https?://\S+)", content, re.MULTILINE)
-        if match:
-            source = match.group(1)
+        title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+        title = title_match.group(1).strip() if title_match else path.stem
+        source_match = re.search(r"^source:\s*(https?://\S+)", content, re.MULTILINE)
+        source = source_match.group(1) if source_match else ""
         body = re.sub(r"^source:\s*https?://\S+\s*", "", content, flags=re.MULTILINE).strip()
         records.append({"title": title, "source": source, "text": body})
     return records
@@ -73,10 +70,9 @@ def retrieve(question: str, records: list[dict[str, str]] | None = None) -> list
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    records = load_knowledge()
     return {
         "status": "ok",
-        "knowledge_documents": len(records),
+        "knowledge_documents": len(load_knowledge()),
         "llm_configured": bool(cfg.llm_api_key and cfg.llm_model),
         "model": cfg.llm_model,
     }
@@ -84,8 +80,7 @@ def health() -> dict[str, Any]:
 
 @app.post("/api/chat")
 async def chat(payload: Question) -> dict[str, Any]:
-    question = payload.question.strip()
-    contexts = retrieve(question)
+    contexts = retrieve(payload.question.strip())
     if not contexts:
         return {
             "answer": "Não encontrei informação suficiente nas fontes institucionais cadastradas para responder com segurança. Consulte o portal oficial do IFSC ou o setor responsável do Câmpus Garopaba.",
@@ -93,10 +88,7 @@ async def chat(payload: Question) -> dict[str, Any]:
             "sources": [],
         }
     if not cfg.llm_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="A chave da API de IA ainda não foi configurada no servidor.",
-        )
+        raise HTTPException(status_code=503, detail="A chave da API de IA ainda não foi configurada no servidor.")
 
     context = "\n\n".join(
         f"FONTE: {item['title']}\nURL: {item['source']}\nCONTEÚDO:\n{item['text']}"
@@ -122,7 +114,7 @@ async def chat(payload: Question) -> dict[str, Any]:
                     "temperature": 0.2,
                     "messages": [
                         {"role": "system", "content": system},
-                        {"role": "user", "content": f"CONTEXTO:\n{context}\n\nPERGUNTA:\n{question}"},
+                        {"role": "user", "content": f"CONTEXTO:\n{context}\n\nPERGUNTA:\n{payload.question.strip()}"},
                     ],
                 },
             )
@@ -131,10 +123,7 @@ async def chat(payload: Question) -> dict[str, Any]:
             if not answer:
                 raise ValueError("Resposta vazia")
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
-        raise HTTPException(
-            status_code=503,
-            detail="O serviço de IA está temporariamente indisponível. Tente novamente mais tarde.",
-        ) from exc
+        raise HTTPException(status_code=503, detail="O serviço de IA está temporariamente indisponível. Tente novamente mais tarde.") from exc
 
     return {
         "answer": answer,

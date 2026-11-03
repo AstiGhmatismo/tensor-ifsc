@@ -1,46 +1,37 @@
 # Tensor-IFSC
 
-Assistente acadêmico experimental para estudantes do IFSC Câmpus Garopaba. A aplicação combina uma interface web responsiva, API FastAPI, recuperação de trechos documentais (RAG), embeddings locais e uma LLM em endpoint compatível com OpenAI.
+Assistente acadêmico experimental para estudantes do IFSC Câmpus Garopaba. Interface web responsiva, API FastAPI e recuperação de informações em documentos institucionais versionados no repositório (RAG leve por relevância lexical).
 
-**Atenção:** esta versão é uma base funcional de desenvolvimento. Nenhum documento oficial do câmpus está incluído. Não use para decisões sobre prazos, bolsas ou direitos acadêmicos antes de indexar e revisar fontes oficiais.
+## Modelo de linguagem
 
-## Executar com Docker
+O projeto utiliza **Gemini 2.5 Flash-Lite** pela API compatível com OpenAI do Google. O modelo foi escolhido por ser adequado a perguntas curtas e por oferecer faixa gratuita na API, sujeita a limites e disponibilidade do Google. É necessária uma chave criada no Google AI Studio; ela deve ser cadastrada como segredo `LLM_API_KEY` no Render e nunca no GitHub.
+
+## Executar localmente
 
 1. Copie `.env.example` para `.env`.
-2. Altere `ADMIN_TOKEN` para um segredo aleatório.
-3. Configure o endpoint e o identificador do modelo em `LLM_BASE_URL` e `LLM_MODEL`.
-4. Coloque documentos autorizados em `data/documents/`.
-5. Execute `docker compose up --build`.
-6. Acesse `http://localhost:8000`.
+2. Configure `LLM_API_KEY`.
+3. Instale as dependências: `pip install -r requirements.txt`.
+4. Execute: `uvicorn app.main:app --reload`.
 
-O servidor LLM deve estar acessível a partir do container. Para LM Studio no host, o exemplo usa `host.docker.internal:1234`.
+## Deploy no Render
 
-## Indexação
+O serviço usa Docker e escuta a porta definida por `PORT`. Configure no Render:
+- `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`
+- `LLM_MODEL=gemini-2.5-flash-lite`
+- `LLM_API_KEY` como segredo.
 
-```bash
-curl -X POST http://localhost:8000/api/admin/ingest -H "X-Admin-Token: SEU_TOKEN"
-```
+O corpus fica versionado em `data/knowledge/`; não depende do filesystem efêmero nem de disco persistente. O plano gratuito pode suspender o serviço após inatividade e causar demora na primeira abertura.
 
-São aceitos PDF, DOCX, TXT e Markdown. A coleção vetorial é persistida em volume Docker.
+## Fontes e limites
+
+O conteúdo inicial foi compilado de páginas oficiais do IFSC Câmpus Garopaba e mantém o link da fonte em cada arquivo. Prazos, editais e calendários mudam; confirme sempre no portal oficial. A base inicial é pequena e não substitui os setores institucionais. Não envie dados pessoais ao chatbot.
 
 ## API
 
 - `GET /api/health`
 - `POST /api/chat` com JSON `{"question":"..." }`
-- `POST /api/admin/ingest` protegido por token
-- `GET /docs` documentação OpenAPI
+- `GET /docs` documentação OpenAPI.
 
-## Segurança e limitações
+## Testes
 
-Use apenas documentos públicos ou autorizados; não indexe dados pessoais. Antes de disponibilizar em rede, adicione HTTPS, autenticação dos estudantes, rate limiting, monitoramento e revisão de segurança. RAG reduz, mas não elimina alucinações. O campo de fontes representa trechos recuperados, não uma garantia de correção. WhatsApp não está implementado.
-
-## Desenvolvimento
-
-```bash
-python -m venv .venv
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-pytest
-```
-
-Veja [docs/VALIDATION.md](docs/VALIDATION.md) para o plano de testes.
+Execute `pytest`. Não declare desempenho, precisão ou validação institucional sem testes correspondentes.
